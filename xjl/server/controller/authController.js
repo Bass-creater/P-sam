@@ -218,7 +218,123 @@ exports.rate = async (req, res) => {
     res.status(500).json({ message: "Error fetching rate: " + error.message });
   }
 };
+exports.smallParcels = async (req, res) => {
+  const { parcels_id } = req.body;
+  try {
+    const existingParcel = await Parcel.findOne({
+      where: { id_parcel: parcels_id, status: "accepted" },
+      attributes: ["from"],
+    });
+    if (!existingParcel) {
+      return res.status(404).json({ message: "Parcel not found in OldParcelTable" });
+    }
+    res.status(200).json(existingParcel);
+    
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching small parcels: " + error.message });
+  }
+};
 
+exports.smallParcelsSave = async (req, res) => {
+  try {
+    const { parcels_id, branch } = req.body;
+    console.log("📦 START smallParcelsSave", { parcels_id, branch });
+
+    // ตรวจสอบว่า parcels_id เป็น array หรือไม่
+    if (!Array.isArray(parcels_id)) {
+      return res.status(400).json({ message: "parcels_id ต้องเป็น array" });
+    }
+
+    if (!branch) {
+      return res.status(400).json({ message: "branch ต้องระบุ" });
+    }
+
+    // ตรวจสอบสาขา
+    const userBranch = await User.findOne({ where: { branch } });
+    if (!userBranch) {
+      return res.status(404).json({ message: "ไม่พบสาขานี้ในระบบ" });
+    }
+
+    const results = [];
+
+    // Loop ผ่าน parcels_id และอัปเดตแต่ละ parcel
+    for (const parcelData of parcels_id) {
+      try {
+        // ตรวจสอบว่า parcelData มี id หรือไม่
+        if (!parcelData.id) {
+          console.log("⚠️ parcelData ไม่มี id:", parcelData);
+          results.push({
+            id: parcelData.id || 'unknown',
+            status: "error",
+            message: "ไม่มี id"
+          });
+          continue;
+        }
+
+        const parcelId = parcelData.id;
+        console.log(`🔄 Processing parcel ID: ${parcelId}`);
+
+        // อัปเดต ParcelDetail โดยตรง
+        const updated = await ParcelDetail.update(
+          {
+            status: "201",
+            branch: branch,
+            type: "delivery",
+            time: new Date()
+          },
+          {
+            where: { id_parcel: parcelId }
+          }
+        );
+
+        if (updated && updated[0] > 0) {
+          console.log(`✅ Successfully updated parcel ${parcelId}`);
+          results.push({
+            id: parcelId,
+            status: "success",
+            message: "อัปเดตสำเร็จ"
+          });
+        } else {
+          console.log(`❌ Failed to update parcel ${parcelId} - not found`);
+          results.push({
+            id: parcelId,
+            status: "error",
+            message: "ไม่พบ parcel ในระบบ"
+          });
+        }
+
+      } catch (error) {
+        console.error(`❌ Error processing parcel ${parcelData.id}:`, error);
+        results.push({
+          id: parcelData.id || 'unknown',
+          status: "error",
+          message: error.message
+        });
+      }
+    }
+
+    console.log("✅ smallParcelsSave completed", {
+      totalProcessed: results.length,
+      branch: branch,
+      results: results
+    });
+
+    res.status(200).json({
+      message: "Small parcels processed successfully!",
+      data: {
+        branch: branch,
+        totalProcessed: results.length,
+        results: results
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Error in smallParcelsSave:", error);
+    res.status(500).json({ 
+      message: "Error processing small parcels: " + error.message 
+    });
+  }
+};
 exports.saveData = async (req, res) => {
   try {
     const { parcel, detail } = req.body;
