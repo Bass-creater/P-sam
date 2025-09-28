@@ -71,7 +71,7 @@ router.get("/rate", authControl.rate);
 router.post("/checkstatus", authControl.checkStatus);
 
 // Excel import route
-router.post("/import-excel", auth, authControl.uploadExcel, authControl.importExcel);
-router.post("/import-excel-parcels-save", auth, authControl.uploadFile, authControl.importExcelToParcelsSave);
+router.post("/import-excel", authControl.uploadExcel, authControl.importExcel);
+router.post("/import-excel-parcels-save", authControl.uploadFile, authControl.importExcelToParcelsSave);
 
 module.exports = router;

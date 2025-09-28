@@ -1099,11 +1099,16 @@ exports.importExcel = async (req, res) => {
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
       
+      // Skip empty rows completely
+      if (!row || row.length === 0) {
+        continue;
+      }
+      
       // Check if column D exists and has data
-      if (row && row[3]) { // Column D is index 3 (0-based)
+      if (row[3] !== undefined && row[3] !== null && row[3] !== '') { // Column D is index 3 (0-based)
         const idParcel = String(row[3]).trim();
         
-        if (idParcel) {
+        if (idParcel && idParcel !== 'undefined' && idParcel !== 'null') {
           try {
             // Check if parcel already exists
             const existingParcel = await Parcel.findOne({
@@ -1247,14 +1252,26 @@ exports.importExcelToParcelsSave = async (req, res) => {
     for (let i = 1; i < jsonData.length; i++) {
       const row = jsonData[i];
       
-      // Check if columns B, C, D, E exist (indices 1, 2, 3, 4)
-      if (row && row[1] !== undefined && row[2] !== undefined && row[3] !== undefined && row[4] !== undefined) {
+      // Skip empty rows completely
+      if (!row || row.length === 0) {
+        continue;
+      }
+      
+      // Check if columns B, C, D, E exist and have data (indices 1, 2, 3, 4)
+      if (row[1] !== undefined && row[2] !== undefined && row[3] !== undefined && row[4] !== undefined &&
+          row[1] !== null && row[2] !== null && row[3] !== null && row[4] !== null &&
+          row[1] !== '' && row[2] !== '' && row[3] !== '' && row[4] !== '') {
+        
         const branch = String(row[1]).trim();
         const tel = String(row[2]).trim();
         const id_parcel = String(row[3]).trim();
         const weight = String(row[4]).trim();
         
-        if (branch && tel && id_parcel && weight) {
+        if (branch && tel && id_parcel && weight && 
+            branch !== 'undefined' && tel !== 'undefined' && 
+            id_parcel !== 'undefined' && weight !== 'undefined' &&
+            branch !== 'null' && tel !== 'null' && 
+            id_parcel !== 'null' && weight !== 'null') {
           processedData.push({
             row: i + 1, // Actual row number in Excel
             branch,
@@ -1262,12 +1279,10 @@ exports.importExcelToParcelsSave = async (req, res) => {
             id_parcel,
             weight: parseFloat(weight) || 0
           });
-        } else {
-          errors.push(`Row ${i + 1}: Missing required data in columns B, C, D, or E`);
         }
-      } else {
-        errors.push(`Row ${i + 1}: Missing columns B, C, D, or E`);
+        // Skip rows with empty data without adding to errors
       }
+      // Skip rows with missing columns without adding to errors
     }
     
     if (processedData.length === 0) {
